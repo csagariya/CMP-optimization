@@ -1,2 +1,103 @@
-# CMP-optimization
-Controlled mass pollination optimization in seed orchards.
+# Control Mass Pollination Optimization in Seed Orchards
+
+This repository contains an R script for optimizing control mass pollination (CMP) in seed orchards. The script maximizes total genetic gain using general combining ability (GCA) and specific combining ability (SCA), while constraining relatedness through a target status number \(N_s\).
+
+## Main file
+
+```text
+R/cmp_optimization.R
+```
+
+The script reads an Excel workbook, solves the optimization problem with Gurobi, and writes the optimized parental contributions and operational crossing plan back into the same workbook.
+
+## Required software
+
+Install R and the following R packages:
+
+```r
+install.packages(c("Matrix", "readxl", "openxlsx"))
+```
+
+The script also requires the `gurobi` R package, which is installed with the Gurobi Optimizer rather than from CRAN. Install Gurobi first, activate a license, and then install the R package from the Gurobi installation folder.
+
+Example on Windows, after installing Gurobi:
+
+```r
+install.packages("C:/gurobi1200/win64/R/gurobi_12.0-0.zip", repos = NULL)
+library(gurobi)
+gurobi::gurobi_version()
+```
+
+Adjust the path and version number to match your local Gurobi installation.
+
+## Input Excel workbook
+
+Prepare one Excel workbook, for example:
+
+```text
+input.xlsx
+```
+
+The workbook must contain these sheets in this order:
+
+| Sheet | Content | Dimension |
+|---|---|---|
+| 1 | GCA values | n parents x 1 |
+| 2 | SCA matrix | n parents x n parents |
+| 3 | Genomic relationship matrix, G | n parents x n parents |
+| 4 | Optional cross-limit matrix | n parents x n parents |
+
+### Sheet 4: optional cross limits
+
+Use Sheet 4 to restrict or ban crosses:
+
+| Cell value | Meaning |
+|---|---|
+| blank | no custom limit, upper bound = 1.0 |
+| 0 | cross is banned |
+| value between 0 and 1 | maximum allowed family proportion |
+
+The script checks both triangular positions of the matrix, for example `(i, j)` and `(j, i)`, and uses the stricter value.
+
+## How to run
+
+From the repository folder, run:
+
+```bash
+Rscript R/cmp_optimization.R input.xlsx 5 1000
+```
+
+Arguments are:
+
+```text
+1. input Excel file path
+2. target status number Ns
+3. total number of operational crosses
+```
+
+For example:
+
+```bash
+Rscript R/cmp_optimization.R data/input.xlsx 5 1000
+```
+
+If no arguments are provided, the defaults are:
+
+```text
+input file: input.xlsx
+target Ns: 5
+number of crosses: 1000
+```
+
+## Output sheets
+
+The script writes three output sheets to the same Excel workbook:
+
+| Output sheet | Description |
+|---|---|
+| `Output_Parents_p` | optimized total parental contribution for each parent |
+| `Output_Families_Y` | optimized family proportions and number of crosses |
+| `Operational_Plan_Simple` | editable operational plan with female and male contribution formulas |
+
+In `Operational_Plan_Simple`, the column `Target Female (f)` is highlighted. You can edit this column to adjust female contributions. The workbook formulas then update the required male contributions and the split of crosses in `Output_Families_Y`.
+
