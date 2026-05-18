@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # Script: Optimization of control mass pollination in seed orchards
-# Authors: Milan Lstiburek and Christi Sagariya
+# Authors: Christi Sagariya, Yousry A. El-Kassaby, Ye-Ji Kim, Milan Lstibůrek
 # Purpose: Maximize genetic gain from GCA and SCA while constraining diversity
 #          using a target status number (Ns).
 # -----------------------------------------------------------------------------
@@ -16,7 +16,7 @@ suppressPackageStartupMessages({
 # User settings
 # -----------------------------------------------------------------------------
 # Usage from terminal:
-#   Rscript R/cmp_optimization.R input_Christi.xlsx 5 1000
+#   Rscript R/cmp_optimization.R input.xlsx 5 1000
 # Arguments:
 #   1. Excel input file path
 #   2. Target status number, Ns
@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
 
 args <- commandArgs(trailingOnly = TRUE)
 
-filename <- ifelse(length(args) >= 1, args[1], "input_Christi.xlsx")
+filename <- ifelse(length(args) >= 1, args[1], "input.xlsx")
 target_ns <- ifelse(length(args) >= 2, as.numeric(args[2]), 5)
 number_crosses <- ifelse(length(args) >= 3, as.numeric(args[3]), 1000)
 
