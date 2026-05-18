@@ -47,17 +47,6 @@ The workbook must contain these sheets in this order:
 | 3 | Genomic relationship matrix, G | n parents x n parents |
 | 4 | Optional cross-limit matrix | n parents x n parents |
 
-### Sheet 4: optional cross limits
-
-Use Sheet 4 to restrict or ban crosses:
-
-| Cell value | Meaning |
-|---|---|
-| blank | no custom limit, upper bound = 1.0 |
-| 0 | cross is banned |
-| value between 0 and 1 | maximum allowed family proportion |
-
-The script checks both triangular positions of the matrix, for example `(i, j)` and `(j, i)`, and uses the stricter value.
 
 ## How to run
 
