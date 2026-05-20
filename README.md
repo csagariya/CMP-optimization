@@ -1,6 +1,5 @@
-# Control Mass Pollination Optimization in Seed Orchards
-
-This repository contains an R script for the article "Leveraging Specific Combining Ability to Improve Genetic Gain in Seed Orchards via Supplemental and Controlled Mass Pollination", by Christi Sagariya, Yousry A. El-Kassaby, Ye-Ji Kim, Milan Lstibůrek. We provide a practical framework for control mass pollination (CMP) optimization in seed orchards. The script maximizes total genetic gain using general combining ability (GCA) and specific combining ability (SCA), while constraining relatedness through a target status number \(N_s\).
+# A novel convex  optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards
+This repository contains an R script for the article A novel convex  optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards. We provide a practical framework for control mass pollination (CMP) optimization in seed orchards to maximise total genetic gain by incorporating both general combining ability (GCA) and specific combining ability (SCA), while constraining relatedness through a target status number \(N_s\).
 
 ## Main file
 
