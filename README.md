@@ -89,3 +89,13 @@ The script writes three output sheets to the same Excel workbook:
 
 In `Operational_Plan_Simple`, the column `Target Female (f)` is highlighted. You can edit this column to adjust female contributions. The workbook formulas then update the required male contributions and the split of crosses in `Output_Families_Y`.
 
+## Contact
+For any further details/information/inquiries, please contact:
+
+Corresponding author: Prof. Milan Lstibůrek
+E-mail: lstiburek@fld.czu.cz
+
+First author: Christi Sagariya
+E-mail: csagariya@gmail.com
+
+
