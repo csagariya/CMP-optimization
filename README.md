@@ -1,6 +1,36 @@
 # A novel convex  optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards
 This repository contains an R script for the article A novel convex  optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards. We provide a practical framework for control mass pollination (CMP) optimization in seed orchards to maximise total genetic gain by incorporating both general combining ability (GCA) and specific combining ability (SCA), while constraining relatedness through a target status number \(N_s\).
+## Part 1: R script for data generation via simulation and CMP optimization used in this article. 
+## R script workflow
+```text
+R/cmp_sim_opt.R
+```
+The script simulates a breeding population and evaluates controlled mass pollination (CMP) decisions under four information scenarios:
 
+1. **Scenario 1 (`sc1_true`)**: true GCA and true SCA used for optimization.
+2. **Scenario 2 (`sc2_hs`)**: half-sib GCA only used for optimization.
+3. **Scenario 3 (`sc3_30`)**: full-sib GCA and SCA estimated from 30 progeny per cross.
+4. **Scenario 4 (`sc4_100`)**: full-sib GCA and SCA estimated from 100 progeny per cross.
+
+For each scenario, the workflow optimizes cross contributions subject to a status-number diversity constraint and then evaluates the realized genetic gain using the true simulated GCA/SCA values.
+
+## Requirements
+
+Install R and the required R packages before running the workflow:
+
+```r
+install.packages(c(
+  "dplyr", "tidyr", "Matrix", "reshape2", "openxlsx", "slam", "ggplot2"
+))
+```
+
+The following packages require separate installation or licensing steps:
+
+- **ASReml-R** (`asreml`): proprietary software; install according to your license.
+- **Gurobi** (`gurobi`): install Gurobi Optimizer and configure a valid license.
+- **MoBPS**, **miraculix**, and **RandomFieldsUtils**: install from their documented sources if not available through your standard R repository setup.
+
+## Part 2: R script - CMP optimization for users. 
 ## Main file
 
 ```text
