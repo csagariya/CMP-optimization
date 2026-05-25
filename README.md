@@ -42,6 +42,7 @@ This repository includes three components:
 
 ```text
 R/cmp_sim_opt.R
+```
 
 ## Workflow
 
