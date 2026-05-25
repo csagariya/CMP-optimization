@@ -1,8 +1,38 @@
 # A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards
 
-This repository contains R scripts associated with the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
+This repository contains R scripts and supporting tools associated with the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
 
 The repository provides a practical framework for **controlled mass pollination (CMP) optimization** in seed orchards. The framework maximizes total genetic gain by incorporating both **general combining ability (GCA)** and **specific combining ability (SCA)**, while constraining relatedness through a target **status number** \(N_s\).
+
+---
+
+## Contents
+
+1. [Repository overview](#repository-overview)
+2. [Part 1: Simulation and CMP optimization used in the article](#part-1-simulation-and-cmp-optimization-used-in-the-article)
+   - [Main file](#main-file)
+   - [Workflow](#workflow)
+   - [Requirements](#requirements)
+3. [Part 2: CMP optimization script for users](#part-2-cmp-optimization-script-for-users)
+   - [Main file](#main-file-1)
+   - [Required software](#required-software)
+   - [Input Excel workbook](#input-excel-workbook)
+   - [How to run](#how-to-run)
+   - [Output sheets](#output-sheets)
+4. [Part 3: CMP optimization using the MS Excel solver](#part-3-cmp-optimization-using-the-ms-excel-solver)
+5. [Contact](#contact)
+
+---
+
+## Repository overview
+
+This repository includes three components:
+
+| Part | Component | Purpose |
+|---|---|---|
+| Part 1 | `R/cmp_sim_opt.R` | Simulation and CMP optimization workflow used in the article |
+| Part 2 | `R/cmp_optimization.R` | User-oriented R script for CMP optimization from an Excel input workbook |
+| Part 3 | `MS-Excel-tool/CMP_solver.xlsx` | Spreadsheet-based CMP optimization tool for users |
 
 ---
 
@@ -12,7 +42,7 @@ The repository provides a practical framework for **controlled mass pollination 
 
 ```text
 R/cmp_sim_opt.R
-```
+
 ## Workflow
 
 The script simulates a breeding population and evaluates controlled mass pollination decisions under four information scenarios:
@@ -134,6 +164,18 @@ The script writes three output sheets to the same Excel workbook:
 | `Operational_Plan_Simple` | editable operational plan with female and male contribution formulas |
 
 In `Operational_Plan_Simple`, the column `Target Female (f)` is highlighted. You can edit this column to adjust female contributions. The workbook formulas then update the required male contributions and the split of crosses in `Output_Families_Y`.
+
+## Part 3: CMP optimization using the MS Excel solver 
+A separate folder, ```text MS-Excel-tool```, is provided for users who prefer to perform CMP optimization using a spreadsheet-based tool.
+
+The Excel file is: 
+```text
+MS-Excel-tool/CMP_solver.xlsx
+```
+The Work book is organized into the following sheets:
+| **Sheet** | **Description** |
+| Sheet 1 | User instructions |
+| Sheet 2 | input data and solver setup for CMP optimization |
 
 ## Contact
 For any further details/information/inquiries, please contact:
