@@ -174,9 +174,10 @@ The Excel file is:
 MS-Excel-tool/CMP_solver.xlsx
 ```
 The Work book is organized into the following sheets:
-| **Sheet** | **Description** |
+| Sheet | Description |
+|---|---|
 | Sheet 1 | User instructions |
-| Sheet 2 | input data and solver setup for CMP optimization |
+| Sheet 2 | Input data and solver setup for CMP optimization |
 
 ## Contact
 For any further details/information/inquiries, please contact:
