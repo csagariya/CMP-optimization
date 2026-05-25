@@ -27,9 +27,8 @@ install.packages(c(
 The following packages require separate installation or licensing steps:
 
 - **ASReml-R** (`asreml`): proprietary software; install according to your license.
-- **Gurobi** (`gurobi`): install Gurobi Optimizer and configure a valid license.
-- **MoBPS**, **miraculix**, and **RandomFieldsUtils**: install from their documented sources if not available through your standard R repository setup.
-
+- **Gurobi** (`gurobi`): install Gurobi Optimizer and configure a valid license. Visit https://www.gurobi.com/ for more details about the license and installation. 
+- **MoBPS**, **miraculix**, and **RandomFieldsUtils**: install from these R packages as per the guidelines given in Pook et al (2020) available in https://doi.org/10.1534/g3.120.401193 
 ## Part 2: R script - CMP optimization for users. 
 ## Main file
 
