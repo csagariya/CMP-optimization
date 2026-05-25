@@ -1,18 +1,28 @@
-# A novel convex  optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards
-This repository contains an R script for the article A novel convex  optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards. We provide a practical framework for control mass pollination (CMP) optimization in seed orchards to maximise total genetic gain by incorporating both general combining ability (GCA) and specific combining ability (SCA), while constraining relatedness through a target status number \(N_s\).
-## Part 1: R script for data generation via simulation and CMP optimization used in this article. 
-## R script workflow
+# A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards
+
+This repository contains R scripts associated with the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
+
+The repository provides a practical framework for **controlled mass pollination (CMP) optimization** in seed orchards. The framework maximizes total genetic gain by incorporating both **general combining ability (GCA)** and **specific combining ability (SCA)**, while constraining relatedness through a target **status number** \(N_s\).
+
+---
+
+## Part 1: Simulation and CMP optimization used in the article
+
+### Main file
+
 ```text
 R/cmp_sim_opt.R
 ```
-The script simulates a breeding population and evaluates controlled mass pollination (CMP) decisions under four information scenarios:
+## Workflow
 
-1. **Scenario 1 (`sc1_true`)**: true GCA and true SCA used for optimization.
-2. **Scenario 2 (`sc2_hs`)**: half-sib GCA only used for optimization.
-3. **Scenario 3 (`sc3_30`)**: full-sib GCA and SCA estimated from 30 progeny per cross.
-4. **Scenario 4 (`sc4_100`)**: full-sib GCA and SCA estimated from 100 progeny per cross.
+The script simulates a breeding population and evaluates controlled mass pollination decisions under four information scenarios:
 
-For each scenario, the workflow optimizes cross contributions subject to a status-number diversity constraint and then evaluates the realized genetic gain using the true simulated GCA/SCA values.
+Scenario 1 (sc1_true): true GCA and true SCA are used for optimization.
+Scenario 2 (sc2_hs): half-sib GCA only is used for optimization.
+Scenario 3 (sc3_30): full-sib GCA and SCA are estimated from 30 progeny per cross.
+Scenario 4 (sc4_100): full-sib GCA and SCA are estimated from 100 progeny per cross.
+
+For each scenario, the workflow optimizes cross contributions subject to a status-number diversity constraint. The realized genetic gain is then evaluated using the true simulated GCA and SCA values.
 
 ## Requirements
 
@@ -20,23 +30,30 @@ Install R and the required R packages before running the workflow:
 
 ```r
 install.packages(c(
-  "dplyr", "tidyr", "Matrix", "reshape2", "openxlsx", "slam", "ggplot2"
+  "dplyr",
+  "tidyr",
+  "Matrix",
+  "reshape2",
+  "openxlsx",
+  "slam",
+  "ggplot2"
 ))
 ```
 
 The following packages require separate installation or licensing steps:
 
 - **ASReml-R** (`asreml`): proprietary software; install according to your license.
-- **Gurobi** (`gurobi`): install Gurobi Optimizer and configure a valid license. Visit https://www.gurobi.com/ for more details about the license and installation. 
-- **MoBPS**, **miraculix**, and **RandomFieldsUtils**: install from these R packages as per the guidelines given in Pook et al (2020) available in https://doi.org/10.1534/g3.120.401193 
-## Part 2: R script - CMP optimization for users. 
+- **Gurobi** (`gurobi`): install Gurobi Optimizer and configure a valid license. See the Gurobi website for license and installation details: https://www.gurobi.com/
+- **MoBPS**, **miraculix**, and **RandomFieldsUtils**: install from these packages according to the guidelines in Pook et al (2020): https://doi.org/10.1534/g3.120.401193 
+
+## Part 2: CMP optimization script for users. 
 ## Main file
 
 ```text
 R/cmp_optimization.R
 ```
 
-The script reads an Excel workbook, solves the optimization problem with Gurobi, and writes the optimized parental contributions and operational crossing plan back into the same workbook.
+This script reads an Excel workbook, solves the CMP optimization problem using Gurobi, and writes the optimized parental contributions and operational crossing plan back into the same workbook.
 
 ## Required software
 
