@@ -44,21 +44,8 @@ repository_root/
 │       └── expected_outputs/
 │           └── README.md
 └── 02_manuscript_reproduction/
-    ├── README.md
-    ├── 001_simulation_data/
-    │   ├── file_description.md
-    │   ├── MoBPS_scripts/
-    │   │   └── MoBPS_CMP_simulation_and_data_generation.R
-    │   └── outputs_used_in_manuscript/
-    │       └── README.md
-    └── 002_CMP_optimization_scenarios/
-        ├── file_description.md
-        ├── R_scripts/
-        │   └── run_CMP_optimization_scenarios.R
-        ├── input/
-        │   └── README.md
-        └── outputs/
-            └── README.md
+    ├── Simulation_optimization_script.R
+    
 ```
 
 ---
