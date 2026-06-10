@@ -1,1 +1,944 @@
+# Simulation and optimization r script for CMP optimization for the research article "A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards".
+# Authors: Christi Sagariya, Ye-Ji Kim, Yousry A. El-Kassaby and Milan Lstibůrek
+
+# Notes for users:
+# - This script is computationally intensive. For testing, reduce n_iterations, nf, snp, nr, reps_vec, and itr_grid before running the full manuscript-scale simulation.
+# - ASReml-R and Gurobi are proprietary/commercial dependencies and must be installed/licensed separately.
+
+options(stringsAsFactors = FALSE)
+
+required_packages <- c(
+    "RandomFieldsUtils", "miraculix", "MoBPS", "asreml", "dplyr", "tidyr",
+    "Matrix", "reshape2", "openxlsx", "gurobi", "slam", "ggplot2"
+)
+missing_packages <- required_packages[!vapply(required_packages, requireNamespace, logical(1), quietly = TRUE)]
+if (length(missing_packages) > 0) {
+    stop(
+        "Install missing packages before running this workflow: ",
+        paste(missing_packages, collapse = ", "),
+        call. = FALSE
+    )
+}
+
+suppressPackageStartupMessages({
+    library(RandomFieldsUtils)
+    library(miraculix)
+    library(MoBPS)
+    library(asreml)
+    library(dplyr)
+    library(tidyr)
+    library(Matrix)
+    library(reshape2)
+    library(openxlsx)
+    library(gurobi)
+    library(slam)
+    library(ggplot2)
+})
+
+# =============================================================================
+# USER SETTINGS
+# =============================================================================
+# The script runs from the current working directory by default.
+# Optional: set CMP_WORKDIR before running R to use a different output directory.
+# Example in R: Sys.setenv(CMP_WORKDIR = "E:/Christi_SCA")
+
+base_workspace <- Sys.getenv("CMP_WORKDIR", unset = getwd())
+base_workspace <- normalizePath(base_workspace, mustWork = FALSE)
+dir.create(base_workspace, recursive = TRUE, showWarnings = FALSE)
+setwd(base_workspace)
+
+random_seed <- 12345
+set.seed(random_seed)
+
+ Simulation scale
+nf   <- 5000     # number of founder individuals
+snp  <- 20000    # number of SNP markers
+ld   <- 100      # generations used in founder simulation
+
+np     <- 100    # selected parents
+np2    <- 900    # random founder records added to half-sib dataset
+np_so  <- 30     # seed orchard parents retained for crossing
+nr     <- 5000   # half-sib offspring
+nr_top <- 1500   # retained for compatibility with earlier analyses
+
+reps_vec <- c(30, 100)
+
+n_iterations <- 50
+set_grid     <- seq_len(n_iterations)
+itr_grid     <- seq_len(n_iterations)
+ns_grid      <- c(1, 2, 5, 10, 15, 20)
+
+# Genetic architecture
+add <- 300
+dom <- 300
+
+Va <- 0.2
+Vd <- 0.1
+sigma_e <- 1 - Va
+heri <- 0.2
+
+# Solver settings
+# asreml.options(ai.sing = TRUE)
+gurobi_params <- list(OutputFlag = 0)
+
+output_dirs <- c(
+    "Data_S1", "Data_S2", "Data_S3", "Data_S4",
+    "Results_S1", "Results_S2", "Results_S3", "Results_S4"
+)
+vapply(output_dirs, dir.create, logical(1), recursive = TRUE, showWarnings = FALSE)
+
+df_var_all <- list()
+vc_mod1 <- list()
+
+# =============================================================================
+# FOUNDER DATASET
+# =============================================================================
+dataset <- founder.simulation(
+    nindi = nf,
+    nsnp = snp,
+    n.gen = ld,
+    sex.quota = 0,
+    chr.nr = 4,
+    chromosome.length = 1,
+    dataset = "random",
+    freq = "beta",
+    snps.equidistant = TRUE,
+    big.output = TRUE,
+    plot = FALSE
+)
+# =============================================================================
+# PART 1: SIMULATION + DATA CREATION
+# =============================================================================
+for (i in 1:n_iterations) {
+
+    cat("\n====================================================\n")
+    cat("Simulation iteration:", i, "\n")
+    cat("====================================================\n")
+
+    population <- creating.diploid(
+        nindi = nf,
+        dataset = dataset[[1]],
+        chr.nr = 4,
+        nqtl = (add+dom),
+        chromosome.length = 1,
+        sex.quota = 0,
+        n.additive = c(add, 0),
+        #n.dominant = c(0, dom),
+        n.overdominant = c(0, dom),
+        #var.additive.l = list(rep(0.2, 300), rep(0, 0)),
+        #var.dominant.l = list(rep(0, 0), rep(5.0, 300)),
+        #var.overdominant.l = list(rep(0, 0), rep(1.0, 300)),
+        mean.target = 0,
+        base.bv = 0,
+        var.target = c(Va, Vd),
+        trait.name = c("add", "dom"),
+        name.cohort = paste0("Founders_", i)
+    )
+
+    
+    amat_all <- dataset[[4]]
+    id_nf <- as.character(get.id(population, cohorts = paste0("Founders_", i)))
+    dimnames(amat_all) <- list(id_nf, id_nf)
+
+    qtls <- get.qtl.effects(population)
+    full_trait <- rbind(qtls[[1]][[1]], qtls[[1]][[2]])
+
+    population <- creating.trait(
+        population,
+        real.bv.add = full_trait,
+        trait.name = "Full_trait",
+        mean.target = 0,
+        base.bv = 0,
+        var.target = Va)
+
+
+    population <- breeding.diploid(
+        population,
+        sigma.e = c(0, 0, sqrt((sigma_e))),
+        #heritability = c(0, 0, heri),
+        phenotyping.cohorts = paste0("Founders_", i),
+        n.observation = c(0, 0, 1)
+    )
+
+    population <- breeding.diploid(
+        population,
+        selection.size = c(np, 0),
+        selection.criteria = "pheno",
+        selection.m.cohorts = paste0("Founders_", i),
+        selection.index.weights.m = c(0, 0, 1),
+        copy.individual = TRUE,
+        name.cohort = paste0("Parents_", i)
+    )
+
+    population <- breeding.diploid(
+        population,
+        breeding.size = nr,
+        breeding.sex = 0,
+        selection.m.cohorts = paste0("Parents_", i),
+        name.cohort = paste0("half-sib_", i)
+    )
+
+    population <- breeding.diploid(
+        population,
+        phenotyping.cohorts = paste0("half-sib_", i),
+        n.observation = c(0, 0, 1)
+    )
+
+    ph_parents <- t(get.pheno(population, cohorts = paste0("Parents_", i)))
+    ped_parents <- get.pedigree(population, cohorts = paste0("Parents_", i))
+    ph_parents <- cbind(ped_parents, ph_parents[, 3])
+    ph_parents <- as.data.frame(ph_parents)
+    colnames(ph_parents)[4] <- "Full_trait"
+    ph_parents$family <- as.factor(ph_parents$offspring)
+
+    ph_half_sib <- t(get.pheno(population, cohorts = paste0("half-sib_", i)))
+    ped_half_sib <- get.pedigree(population, cohorts = paste0("half-sib_", i))
+    ph_half_sib <- cbind(ped_half_sib, ph_half_sib[, 3])
+    ph_half_sib <- as.data.frame(ph_half_sib)
+    colnames(ph_half_sib)[4] <- "Full_trait"
+    ph_half_sib$family <- as.factor(ph_half_sib$mother)
+    ph_half_sib$father <- "0"
+
+    ph_random_raw <- t(get.pheno(population, cohorts = paste0("Founders_", i)))
+    id_parents <- as.character(get.id(population, cohorts = paste0("Parents_", i)))
+    ph_random_raw <- ph_random_raw[!rownames(ph_random_raw) %in% id_parents, , drop = FALSE]
+    sel_idx <- sample(seq_len(nrow(ph_random_raw)), np2)
+
+    ph_random <- data.frame(
+        offspring = rownames(ph_random_raw)[sel_idx],
+        father = "0",
+        mother = "0",
+        Full_trait = as.numeric(ph_random_raw[sel_idx, 3]),
+        stringsAsFactors = FALSE
+    )
+
+
+    ph_random$family <- as.factor(ph_random$offspring)
+
+    data_hs <- rbind.data.frame(ph_parents, ph_random, ph_half_sib)
+
+    data_hs$father <- as.factor(data_hs$father)
+    data_hs$mother <- as.factor(data_hs$mother)
+    data_hs$offspring <- as.factor(data_hs$offspring)
+    data_hs$family <- as.factor(data_hs$family)
+
+    ainv_hs <- ainverse(pedigree = data_hs[, c(1:3)])
+
+    mod_hs <- asreml(
+        fixed = Full_trait ~ 1,
+        random = ~ vm(family, ainv_hs),
+        residual = ~ idv(units),
+        na.action = na.method(y = "include"),
+        maxit = 100,
+        workspace = 1e09,
+        data = data_hs
+    )
+
+    summary(mod_hs)$varcomp
+    blup_hs <- as.data.frame(summary(mod_hs, coef = TRUE)$coef.random)
+    blup_hs$ID <- sub("^vm\\(family, ainv_hs\\)_", "", rownames(blup_hs))
+    blup_par <- blup_hs[blup_hs$ID %in% id_parents, , drop = FALSE]
+    blup_par$GCA <- blup_par$solution
+
+    top_30 <- blup_par[order(blup_par$solution, decreasing = TRUE), , drop = FALSE]
+    top_30 <- top_30[1:np_so, , drop = FALSE]
+    id_top_30 <- as.character(top_30$ID)
+
+    df_hs_top <- data.frame(
+        itr = i,
+        ID = as.character(top_30$ID),
+        gca_hs = top_30$GCA,
+        stringsAsFactors = FALSE
+    )
+
+    sca_hs_top <- matrix(0, ncol = length(df_hs_top$ID), nrow = length(df_hs_top$ID))
+    dimnames(sca_hs_top) <- list(df_hs_top$ID, df_hs_top$ID)
+
+
+    # ---------------------------------------------------------------------------
+    # TRUE GCA / TRUE SCA
+    # ---------------------------------------------------------------------------
+    effects <- get.qtl.effects(population)[[1]][[3]]
+    g0 <- effects[, 3]
+    g1 <- effects[, 4]
+    g2 <- effects[, 5]
+    qtl_idx <- effects[, 6]
+
+    a_eff <- (g2 - g0) / 2
+    d_eff <- g1 - (g0 + g2) / 2
+
+    geno_par <- get.geno(population, cohorts = paste0("Parents_", i))
+    geno_par <- geno_par[, id_top_30, drop = FALSE]
+    Gq_par <- geno_par[qtl_idx, , drop = FALSE]
+
+    ids <- colnames(Gq_par)
+    n <- length(ids)
+    p_par <- Gq_par / 2
+
+    true_cross_mean <- matrix(NA_real_, n, n, dimnames = list(ids, ids))
+    for (u in 1:n) {
+        for (v in u:n) {
+            pu <- p_par[, u]
+            pv <- p_par[, v]
+            add_part <- sum(a_eff * (pu + pv - 1))
+            het_part <- pu * (1 - pv) + (1 - pu) * pv
+            dom_part <- sum(d_eff * het_part)
+            val <- add_part + dom_part
+            true_cross_mean[u, v] <- val
+            true_cross_mean[v, u] <- val
+        }
+    }
+
+    tmp <- true_cross_mean
+    diag(tmp) <- NA_real_
+    mu_true <- mean(tmp[upper.tri(tmp, diag = FALSE)], na.rm = TRUE)
+
+    gca_true <- rowMeans(tmp, na.rm = TRUE) - mu_true
+    names(gca_true) <- ids
+
+    true_sca <- matrix(NA_real_, n, n, dimnames = list(ids, ids))
+    for (u in 1:(n - 1)) {
+        for (v in (u + 1):n) {
+            sca_uv <- true_cross_mean[u, v] - mu_true - gca_true[u] - gca_true[v]
+            true_sca[u, v] <- sca_uv
+            true_sca[v, u] <- sca_uv
+        }
+    }
+    diag(true_sca) <- 0
+
+    df_true <- data.frame(
+        itr = i,
+        ID = ids,
+        GCA = as.numeric(gca_true),
+        stringsAsFactors = FALSE
+    )
+
+
+
+     amat_top <- amat_all[id_top_30, id_top_30, drop = FALSE]
+
+     write.csv(amat_top, file.path("Data_S1", sprintf("A_mat_itr_%s.csv", i)), row.names = TRUE)
+     write.csv(df_true, file.path("Data_S1", sprintf("GCA_True_itr_%s.csv", i)), row.names = FALSE)
+     write.csv(true_sca, file.path("Data_S1", sprintf("SCA_True_itr_%s.csv", i)), row.names = TRUE)
+
+     write.csv(df_hs_top, file.path("Data_S2", sprintf("GCA_Half-sib_itr_%s.csv", i)), row.names = FALSE)
+     write.csv(sca_hs_top, file.path("Data_S2", sprintf("SCA_Half-sib_itr_%s.csv", i)), row.names = TRUE)
+
+
+    df_var_all[[length(df_var_all) + 1]] <- data.frame(
+        sc = "sc1",
+        itr = i,
+        gca = var(df_true$GCA, na.rm = TRUE),
+        sca = var(true_sca[upper.tri(true_sca, diag = FALSE)], na.rm = TRUE),
+        ratio = var(true_sca[upper.tri(true_sca, diag = FALSE)], na.rm = TRUE) / var(df_true$GCA, na.rm = TRUE)
+    )
+
+    # ---------------------------------------------------------------------------
+    # FULL-SIB SCENARIOS: 30 and 100 reps together
+    # ---------------------------------------------------------------------------
+    for (k in reps_vec) {
+
+        out_dir_now <- ifelse(k == 30, "Data_S3", "Data_S4")
+
+        database_selected <- get.database(population, id = id_top_30)
+
+        population <- breeding.diploid(
+            population,
+            breeding.all.combination = TRUE,
+            selection.m.database = database_selected,
+            selection.size = c(np_so, 0),
+            breeding.sex = 0,
+            repeat.mating = k,
+            name.cohort = paste0("Full-sib_", k, "_", i)
+        )
+
+        population <- breeding.diploid(
+            population,
+            phenotyping.cohorts = paste0("Full-sib_", k, "_", i),
+            n.observation = c(0, 0, 1)
+        )
+
+        ped_off <- get.pedigree(population, cohorts = paste0("Full-sib_", k, "_", i))
+        pheno_off <- t(get.pheno(population, cohorts = paste0("Full-sib_", k, "_", i)))
+        pheno_off <- cbind.data.frame(ped_off, pheno_off)
+        df1 <- data.frame(pheno_off, stringsAsFactors = FALSE)
+
+        p1 <- pmin(as.character(df1$father), as.character(df1$mother))
+        p2 <- pmax(as.character(df1$father), as.character(df1$mother))
+        df1$cross <- paste0(p1, "_X_", p2)
+
+        df1$father <- as.factor(df1$father)
+        df1$mother <- as.factor(df1$mother)
+        df1$offspring <- as.factor(df1$offspring)
+        df1$cross <- as.factor(df1$cross)
+
+        ped1 <- df1[, c("offspring", "father", "mother")]
+        ainv1 <- ainverse(pedigree = ped1)
+
+        mod1 <- asreml(
+            fixed = Full_trait ~ 1,
+            random = ~ vm(mother, ainv1) + and(vm(father, ainv1)) + cross,
+            equate.levels = c("mother", "father"),
+            residual = ~ idv(units),
+            na.action = na.method(y = "include"),
+            maxit = 100,
+            workspace = 1e09,
+            data = df1
+        )
+
+
+
+        blup1 <- summary(mod1, coef = TRUE)$coef.random
+        blup1_m <- as.data.frame(blup1[grep("^vm\\(mother, ainv1\\)_", rownames(blup1)), , drop = FALSE])
+        blup1_m$ID <- gsub("^vm\\(mother, ainv1\\)_", "", rownames(blup1_m))
+
+        blup1_f <- as.data.frame(blup1[grep("father", rownames(blup1)), , drop = FALSE])
+        blup1_f$ID <- rownames(blup1_f)
+        blup1_f$ID <- gsub("^and\\(vm\\(father, ainv1\\)\\)_", "", blup1_f$ID)
+        blup1_f$ID <- gsub("^vm\\(father, ainv1\\)_", "", blup1_f$ID)
+
+        gca_merge <- data.frame(ID = id_top_30, stringsAsFactors = FALSE)
+        gca_merge <- left_join(gca_merge, blup1_m[, c("ID", "solution")], by = "ID")
+        colnames(gca_merge)[2] <- "gca_m"
+        gca_merge <- left_join(gca_merge, blup1_f[, c("ID", "solution")], by = "ID")
+        colnames(gca_merge)[3] <- "gca_f"
+        gca_merge$GCA <- rowMeans(gca_merge[, c("gca_m", "gca_f")], na.rm = TRUE)
+        gca_merge$GCA[is.na(gca_merge$GCA)] <- 0
+
+        df_fs <- data.frame(
+            ID = gca_merge$ID,
+            gca_fs = gca_merge$GCA,
+            stringsAsFactors = FALSE
+        )
+        var(df_fs$gca_fs)
+
+        blup1_family <- as.data.frame(blup1[grep("^cross_", rownames(blup1)), , drop = FALSE])
+        blup1_family$ID <- gsub("^cross_", "", rownames(blup1_family))
+        blup1_family <- blup1_family %>%
+            separate(ID, into = c("father", "mother"), sep = "_X_", remove = FALSE)
+        blup1_family$SCA <- blup1_family$solution
+        blup1_family <- blup1_family %>%
+            filter(father != "0", mother != "0")
+        sca1 <- matrix(0, nrow = np_so, ncol = np_so, dimnames = list(id_top_30, id_top_30))
+        up1 <- as.matrix(blup1_family[, c("father", "mother")])
+        low1 <- as.matrix(blup1_family[, c("mother", "father")])
+        sca1[up1] <- blup1_family$SCA
+        sca1[low1] <- blup1_family$SCA
+        diag(sca1) <- 0
+
+        write.csv(df_fs,
+                  file.path(out_dir_now, sprintf("GCA_Full-sib_reps_%s_itr_%s.csv", k, i)),
+                  row.names = FALSE)
+        write.csv(sca1,
+                  file.path(out_dir_now, sprintf("SCA_Full-sib_reps_%s_itr_%s.csv", k, i)),
+                  row.names = TRUE)
+
+        df_var_all[[length(df_var_all) + 1]] <- data.frame(
+            sc = ifelse(k == 30, "sc3", "sc4"),
+            itr = i,
+            gca = var(df_fs$gca_fs, na.rm = TRUE),
+            sca = var(sca1[upper.tri(sca1, diag = FALSE)], na.rm = TRUE),
+            ratio = var(sca1[upper.tri(sca1, diag = FALSE)], na.rm = TRUE) / var(df_fs$gca_fs, na.rm = TRUE)
+        )
+
+        vc_mod1[[length(vc_mod1) + 1]] <- data.frame(
+            sc = k,
+            itr = i,
+            Vgca = summary(mod1)$varcomp[1,1],
+            Vsca = summary(mod1)$varcomp[2,1],
+            Vres = summary(mod1)$varcomp[3,1],
+            Vratio = summary(mod1)$varcomp[2,1] / summary(mod1)$varcomp[1,1]
+        )
+
+
+        cat("Full-sib scenario reps =", k, "iteration", i, "completed.\n")
+    }
+}
+
+final_var_ratio <- bind_rows(df_var_all)
+final_vc <- bind_rows(vc_mod1)
+
+write.csv(final_var_ratio, "Final_var_ratio.csv", row.names = FALSE)
+
+summary_var <- final_var_ratio %>%
+    group_by(sc) %>%
+    summarise(
+        n = n(),
+        mean_ratio = mean(ratio, na.rm = TRUE),
+        ci_ratio = 1.96 * sd(ratio, na.rm = TRUE) / sqrt(n),
+        .groups = "drop")
+print(summary_var)
+
+write.csv(summary_var, "Summary_Final_var_ratio.csv", row.names = FALSE)
+
+#####################################################################################################################################################
+# =============================================================================
+# PART 2: OPTIMIZATION
+# estimated values are used for DECISION
+# true values from Scenario 1 are used for EVALUATION
+# =============================================================================
+
+scenario_info <- data.frame(
+    scenario = c("sc1_true", "sc2_hs", "sc3_30", "sc4_100"),
+    data_dir = c("Data_S1", "Data_S2", "Data_S3", "Data_S4"),
+    res_dir  = c("Results_S1", "Results_S2", "Results_S3", "Results_S4"),
+    gca_file = c(
+        "GCA_True_itr_%d.csv",
+        "GCA_Half-sib_itr_%d.csv",
+        "GCA_Full-sib_reps_30_itr_%d.csv",
+        "GCA_Full-sib_reps_100_itr_%d.csv"
+    ),
+    sca_file = c(
+        "SCA_True_itr_%d.csv",
+        "SCA_Half-sib_itr_%d.csv",
+        "SCA_Full-sib_reps_30_itr_%d.csv",
+        "SCA_Full-sib_reps_100_itr_%d.csv"
+    ),
+    gca_col = c("GCA", "gca_hs", "gca_fs", "gca_fs"),
+    decision_mode = c("both", "additive_only", "both", "both"),
+    plot_title = c(
+        "Scenario 1: True GCA + True SCA used in optimization",
+        "Scenario 2: Half-sib GCA only used in optimization",
+        "Scenario 3: Full-sib GCA + SCA used in optimization (30 reps)",
+        "Scenario 4: Full-sib GCA + SCA used in optimization (100 reps)"
+    ),
+    stringsAsFactors = FALSE
+)
+
+all_results <- list()
+
+for (s in 1:nrow(scenario_info)) {
+    
+    sc_name       <- scenario_info$scenario[s]
+    data_dir      <- scenario_info$data_dir[s]
+    res_dir       <- scenario_info$res_dir[s]
+    gca_filef     <- scenario_info$gca_file[s]
+    sca_filef     <- scenario_info$sca_file[s]
+    gca_col       <- scenario_info$gca_col[s]
+    decision_mode <- scenario_info$decision_mode[s]
+    
+    cat("\n====================================================\n")
+    cat("SCENARIO START:", sc_name, "\n")
+    cat("Scenario number:", s, "of", nrow(scenario_info), "\n")
+    cat("Decision mode:", decision_mode, "\n")
+    cat("Data directory:", data_dir, "\n")
+    cat("Results directory:", res_dir, "\n")
+    cat("====================================================\n")
+    
+    scenario_res <- list()
+    
+    for (set_idx in set_grid) {
+        
+        cat("\n----------------------------------------------------\n")
+        cat("DATASET START\n")
+        cat("Scenario:", sc_name, "\n")
+        cat("Dataset:", set_idx, "of", length(set_grid), "\n")
+        cat("----------------------------------------------------\n")
+        
+        file_G <- file.path("Data_S1", sprintf("A_mat_itr_%d.csv", set_idx))
+        
+        file_true_GCA <- file.path("Data_S1", sprintf("GCA_True_itr_%d.csv", set_idx))
+        file_true_SCA <- file.path("Data_S1", sprintf("SCA_True_itr_%d.csv", set_idx))
+        
+        file_est_GCA <- file.path(data_dir, sprintf(gca_filef, set_idx))
+        file_est_SCA <- file.path(data_dir, sprintf(sca_filef, set_idx))
+        
+        if (!all(file.exists(c(file_G, file_true_GCA, file_true_SCA, file_est_GCA, file_est_SCA)))) {
+            cat("Missing files for", sc_name, "set", set_idx, "- skipped\n")
+            next
+        }
+        
+        G <- as.matrix(read.csv(file_G,header = TRUE, row.names = 1,check.names = FALSE)) / 2
+        
+        gca_true_df <- read.csv(file_true_GCA, header = TRUE, check.names = FALSE)
+        
+        sca_true <- as.matrix(read.csv(file_true_SCA, header = TRUE, row.names = 1, check.names = FALSE))
+        
+        gca_est_df <- read.csv(file_est_GCA, header = TRUE, check.names = FALSE)
+        
+        sca_est <- as.matrix(read.csv(file_est_SCA,header = TRUE,row.names = 1,check.names = FALSE))
+        
+        if (!gca_col %in% names(gca_est_df)) {
+            stop(sprintf(
+                "Column '%s' not found in %s. Available columns: %s",
+                gca_col,
+                file_est_GCA,
+                paste(names(gca_est_df), collapse = ", ")
+            ))
+        }
+        
+        gca_true <- gca_true_df$GCA
+        names(gca_true) <- as.character(gca_true_df$ID)
+        
+        gca_est <- gca_est_df[[gca_col]]
+        names(gca_est) <- as.character(gca_est_df$ID)
+        
+        common_ids <- Reduce(
+            intersect,
+            list(
+                rownames(G),
+                names(gca_true),
+                rownames(sca_true),
+                names(gca_est),
+                rownames(sca_est)
+            )
+        )
+        
+        if (length(common_ids) < 2) {
+            cat("Too few common IDs for", sc_name, "set", set_idx, "- skipped\n")
+            next
+        }
+        
+        G_set <- G[common_ids, common_ids, drop = FALSE]
+        G_set <- (G_set + t(G_set)) / 2
+        
+        eig <- eigen(G_set, symmetric = TRUE)
+        eig$values[eig$values < 1e-6] <- 1e-6
+        G_set <- eig$vectors %*% diag(eig$values) %*% t(eig$vectors)
+        dimnames(G_set) <- list(common_ids, common_ids)
+        
+        gca_true_set <- gca_true[common_ids]
+        sca_true_set <- sca_true[common_ids, common_ids, drop = FALSE]
+        
+        gca_est_set <- gca_est[common_ids]
+        sca_est_set <- sca_est[common_ids, common_ids, drop = FALSE]
+        
+        sca_true_set <- (sca_true_set + t(sca_true_set)) / 2
+        sca_est_set <- (sca_est_set + t(sca_est_set)) / 2
+        
+        diag(sca_true_set) <- 0
+        diag(sca_est_set) <- 0
+        
+        if (decision_mode == "additive_only") {
+            sca_est_set[,] <- 0
+        }
+        
+        n_parents <- length(common_ids)
+        family_map <- combn(n_parents, 2)
+        n_families <- ncol(family_map)
+        
+        M <- Matrix(
+            0,
+            nrow = n_parents,
+            ncol = n_families,
+            sparse = TRUE
+        )
+        
+        cross_gca_est  <- numeric(n_families)
+        cross_sca_est  <- numeric(n_families)
+        cross_obj_est  <- numeric(n_families)
+        
+        cross_gca_true <- numeric(n_families)
+        cross_sca_true <- numeric(n_families)
+        
+        for (k in 1:n_families) {
+            
+            idx_i <- family_map[1, k]
+            idx_j <- family_map[2, k]
+            
+            id_i <- common_ids[idx_i]
+            id_j <- common_ids[idx_j]
+            
+            M[idx_i, k] <- 0.5
+            M[idx_j, k] <- 0.5
+            
+            cross_gca_est[k] <- 0.5 * (gca_est_set[id_i] + gca_est_set[id_j])
+            cross_sca_est[k] <- sca_est_set[id_i, id_j]
+            
+            if (decision_mode == "additive_only") {
+                cross_obj_est[k] <- cross_gca_est[k]
+            }
+            
+            if (decision_mode == "both") {
+                cross_obj_est[k] <- cross_gca_est[k] + cross_sca_est[k]
+            }
+            
+            cross_gca_true[k] <- 0.5 * (gca_true_set[id_i] + gca_true_set[id_j])
+            cross_sca_true[k] <- sca_true_set[id_i, id_j]
+        }
+        
+        Qc <- as.matrix(t(M) %*% G_set %*% M)
+        Qc <- (Qc + t(Qc)) / 2
+        
+        for (ns in ns_grid) {
+            
+            cat("\nNs START\n")
+            cat("Scenario:", sc_name, "\n")
+            cat("Dataset:", set_idx, "of", length(set_grid), "\n")
+            cat("Ns:", ns, "\n")
+            
+            set_ns_dir <- file.path(
+                res_dir,
+                sprintf("Set_%d", set_idx),
+                sprintf("ns_%02d", ns)
+            )
+            
+            dir.create(
+                set_ns_dir,
+                recursive = TRUE,
+                showWarnings = FALSE
+            )
+            
+            for (itr in itr_grid) {
+                
+                cat(
+                    "Running optimization |",
+                    "Scenario:", sc_name, "|",
+                    "Dataset:", set_idx, "of", length(set_grid), "|",
+                    "Ns:", ns, "|",
+                    "Optimization iteration:", itr, "of", length(itr_grid), "\n"
+                )
+                
+                model <- list()
+                model$obj <- cross_obj_est
+                model$modelsense <- "max"
+                model$A <- matrix(1, nrow = 1, ncol = n_families)
+                model$rhs <- 1
+                model$sense <- "="
+                model$lb <- rep(0, n_families)
+                model$ub <- rep(1, n_families)
+                model$quadcon <- list(
+                    list(
+                        Qc = Qc,
+                        rhs = 1 / (2 * ns),
+                        sense = "<="
+                    )
+                )
+                
+                time_start <- Sys.time()
+                
+                res <- gurobi(model, gurobi_params)
+                
+                time_end <- Sys.time()
+                elapsed_time_sec <- as.numeric(difftime(time_end, time_start, units = "secs"))
+                
+                cat(
+                    "Completed optimization |",
+                    "Scenario:", sc_name, "|",
+                    "Dataset:", set_idx, "|",
+                    "Ns:", ns, "|",
+                    "Optimization iteration:", itr, "|",
+                    "Status:", ifelse(is.null(res$status), "NULL", res$status), "|",
+                    "Time:", round(elapsed_time_sec, 3), "sec\n"
+                )
+                
+                if (!is.null(res$status) && res$status == "OPTIMAL") {
+                    
+                    Y_opt <- res$x
+                    X_opt <- as.vector(M %*% Y_opt)
+                    active_cross_idx <- which(Y_opt > 1e-8)
+                    
+                    pred_gain_gca <- sum(Y_opt * cross_gca_est)
+                    
+                    if (decision_mode == "additive_only") {
+                        pred_gain_sca <- 0
+                    }
+                    
+                    if (decision_mode == "both") {
+                        pred_gain_sca <- sum(Y_opt * cross_sca_est)
+                    }
+                    
+                    pred_total_gain <- pred_gain_gca + pred_gain_sca
+                    
+                    real_gain_gca <- sum(Y_opt * cross_gca_true)
+                    real_gain_sca <- sum(Y_opt * cross_sca_true)
+                    real_total_gain <- real_gain_gca + real_gain_sca
+                    
+                    df_summary_now <- data.frame(
+                        scenario = sc_name,
+                        set = set_idx,
+                        ns = ns,
+                        opt_itr = itr,
+                        decision_mode = decision_mode,
+                        status = res$status,
+                        elapsed_time_sec = elapsed_time_sec,
+                        objective_estimated = res$objval,
+                        predicted_gain_gca = pred_gain_gca,
+                        predicted_gain_sca = pred_gain_sca,
+                        predicted_total_gain = pred_total_gain,
+                        realized_gain_gca = real_gain_gca,
+                        realized_gain_sca = real_gain_sca,
+                        realized_total_gain = real_total_gain,
+                        diversity_value = as.numeric(t(X_opt) %*% G_set %*% X_opt),
+                        diversity_limit = 1 / (2 * ns),
+                        n_active_crosses = length(active_cross_idx),
+                        n_active_parents = sum(X_opt > 1e-8),
+                        stringsAsFactors = FALSE
+                    )
+                    
+                    df_Y_now <- data.frame(
+                        scenario = sc_name,
+                        set = set_idx,
+                        ns = ns,
+                        opt_itr = itr,
+                        parent1_ID = common_ids[family_map[1, active_cross_idx]],
+                        parent2_ID = common_ids[family_map[2, active_cross_idx]],
+                        Y_opt = Y_opt[active_cross_idx],
+                        est_cross_gca = cross_gca_est[active_cross_idx],
+                        est_cross_sca = cross_sca_est[active_cross_idx],
+                        est_cross_total = ifelse(
+                            decision_mode == "additive_only",
+                            cross_gca_est[active_cross_idx],
+                            cross_gca_est[active_cross_idx] + cross_sca_est[active_cross_idx]
+                        ),
+                        true_cross_gca = cross_gca_true[active_cross_idx],
+                        true_cross_sca = cross_sca_true[active_cross_idx],
+                        true_cross_total = cross_gca_true[active_cross_idx] + cross_sca_true[active_cross_idx],
+                        stringsAsFactors = FALSE
+                    )
+                    
+                    df_X_now <- data.frame(
+                        scenario = sc_name,
+                        set = set_idx,
+                        ns = ns,
+                        opt_itr = itr,
+                        parent_ID = common_ids,
+                        X_opt = X_opt,
+                        stringsAsFactors = FALSE
+                    )
+                    
+                } else {
+                    
+                    df_summary_now <- data.frame(
+                        scenario = sc_name,
+                        set = set_idx,
+                        ns = ns,
+                        opt_itr = itr,
+                        decision_mode = decision_mode,
+                        status = ifelse(is.null(res$status), "FAILED", res$status),
+                        elapsed_time_sec = elapsed_time_sec,
+                        objective_estimated = NA_real_,
+                        predicted_gain_gca = NA_real_,
+                        predicted_gain_sca = NA_real_,
+                        predicted_total_gain = NA_real_,
+                        realized_gain_gca = NA_real_,
+                        realized_gain_sca = NA_real_,
+                        realized_total_gain = NA_real_,
+                        diversity_value = NA_real_,
+                        diversity_limit = 1 / (2 * ns),
+                        n_active_crosses = NA_integer_,
+                        n_active_parents = NA_integer_,
+                        stringsAsFactors = FALSE
+                    )
+                    
+                    df_Y_now <- data.frame()
+                    df_X_now <- data.frame()
+                }
+                
+                scenario_res[[length(scenario_res) + 1]] <- df_summary_now
+                
+                out_file <- file.path(
+                    set_ns_dir,
+                    sprintf("Set_%d_ns_%02d_optItr_%02d.xlsx", set_idx, ns, itr)
+                )
+                
+                wb <- createWorkbook()
+                
+                addWorksheet(wb, "Summary")
+                writeData(wb, "Summary", df_summary_now)
+                freezePane(wb, "Summary", firstRow = TRUE)
+                
+                addWorksheet(wb, "Y_opt")
+                writeData(wb, "Y_opt", df_Y_now)
+                freezePane(wb, "Y_opt", firstRow = TRUE)
+                
+                addWorksheet(wb, "X_opt")
+                writeData(wb, "X_opt", df_X_now)
+                freezePane(wb, "X_opt", firstRow = TRUE)
+                
+                saveWorkbook(wb, out_file, overwrite = TRUE)
+            }
+            
+            cat("Ns completed | Scenario:", sc_name, "| Dataset:", set_idx, "| Ns:", ns, "\n")
+        }
+        
+        cat("DATASET COMPLETED | Scenario:", sc_name, "| Dataset:", set_idx, "\n")
+    }
+    
+    cat("\nSCENARIO COMPLETED:", sc_name, "\n")
+    
+    scenario_df <- bind_rows(scenario_res)
+    all_results[[sc_name]] <- scenario_df
+    
+    write.csv(
+        scenario_df,
+        file.path(res_dir, paste0("Summary_", sc_name, ".csv")),
+        row.names = FALSE
+    )
+    
+    plot_df <- scenario_df %>%
+        filter(status == "OPTIMAL") %>%
+        group_by(ns) %>%
+        summarise(
+            n = sum(!is.na(realized_total_gain)),
+            mean_gain_total = mean(realized_total_gain, na.rm = TRUE),
+            ci_total = ifelse(n > 1, 1.96 * sd(realized_total_gain, na.rm = TRUE) / sqrt(n), 0),
+            mean_gain_gca = mean(realized_gain_gca, na.rm = TRUE),
+            ci_gca = ifelse(n > 1, 1.96 * sd(realized_gain_gca, na.rm = TRUE) / sqrt(n), 0),
+            mean_gain_sca = mean(realized_gain_sca, na.rm = TRUE),
+            ci_sca = ifelse(n > 1, 1.96 * sd(realized_gain_sca, na.rm = TRUE) / sqrt(n), 0),
+            .groups = "drop"
+        ) %>%
+        pivot_longer(
+            cols = -c(ns, n),
+            names_to = c(".value", "component"),
+            names_pattern = "(mean_gain|ci)_(gca|sca|total)"
+        ) %>%
+        rename(ci_value = ci)
+    
+    plot_df$ci_value[is.na(plot_df$ci_value)] <- 0
+    
+    if (nrow(plot_df) > 0) {
+        
+        p_now <- ggplot(
+            plot_df,
+            aes(
+                x = factor(ns),
+                y = mean_gain,
+                color = component,
+                group = component
+            )
+        ) +
+            geom_linerange(
+                aes(
+                    ymin = mean_gain - ci_value,
+                    ymax = mean_gain + ci_value
+                ),
+                linewidth = 0.8
+            ) +
+            geom_line(linewidth = 0.8) +
+            geom_point(size = 3) +
+            scale_y_continuous(
+                breaks = seq(0, 1.0, by = 0.2),
+                limits = c(0, 1.0)
+            ) +
+            labs(
+                title = scenario_info$plot_title[s],
+                x = "Ns",
+                y = "Realized gain value",
+                color = "component"
+            ) +
+            theme_minimal() +
+            scale_color_brewer(palette = "Set1")
+        
+        print(p_now)
+        
+        ggsave(
+            file.path(res_dir, paste0(sc_name, "_Gains_realized.png")),
+            plot = p_now,
+            width = 8,
+            height = 5
+        )
+    }
+}
+
+final_all_opt <- bind_rows(all_results)
+
+write.csv(
+    final_all_opt,
+    "All_Scenarios_Optimization_Summary.csv",
+    row.names = FALSE
+)
+
+cat("\nAll scenarios completed successfully.\n")
 
