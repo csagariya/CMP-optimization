@@ -28,7 +28,7 @@ repository_root/
 ├── 01_CMP_optimization/
 │   ├── 001_R/
 │   │   
-│   │   ├── run_CMP_optimization.R
+│   │   ├── CMP_optimization.R
 │   │   ├── input.xlsx
 │   │   
 │   └── 002_Excel/
