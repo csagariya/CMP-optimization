@@ -2,52 +2,38 @@
 
 This repository supports the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
 
-The repository is organized so that folder names match the workflow. Most users should start with **01_CMP_optimization**, which contains the practical CMP model and example inputs. The manuscript-scale MoBPS simulation and scenario reproduction workflow is separated under **02_manuscript_reproduction**.
+The repository is organized into two main workflows:
 
----
-
-## Contents
-
-1. [CMP optimization model for users](#01_cmp_optimization)
-   - [R implementation](#r-implementation)
-   - [Excel implementation](#excel-implementation)
-2. [Manuscript reproduction](#02_manuscript_reproduction)
-   - [Simulation data generation](#simulation-data-generation)
-   - [CMP optimization scenarios](#cmp-optimization-scenarios)
-3. [Software requirements](#software-requirements)
-4. [Contact](#contact)
+- **`01_CMP_optimization/`**: user-facing controlled mass pollination (CMP) optimization tools in R and Excel.
+- **`02_manuscript_reproduction/`**: manuscript-scale simulation and optimization workflow used to reproduce the study scenarios.
 
 ---
 
 ## Repository structure
 
 ```text
-repository_root/
+CMP-optimization-main/
 ├── README.md
 ├── LICENSE
 ├── 01_CMP_optimization/
 │   ├── 001_R/
-│   │   
 │   │   ├── CMP_optimization.R
-│   │   ├── input.xlsx
-│   │   
+│   │   └── input.xlsx
 │   └── 002_Excel/
-│       ├── CMP_solver.xlsx
-│       
+│       └── CMP_solver.xlsx
 └── 02_manuscript_reproduction/
-    ├── Simulation_optimization_script.R
-    
+    └── Simulation_optimization_script
 ```
 
 ---
 
 ## 01_CMP_optimization
 
-This folder contains the main CMP optimization model for new users.
+This folder contains the main CMP optimization tools for users.
 
 ### R implementation
 
-Main file:
+Main script:
 
 ```text
 01_CMP_optimization/001_R/CMP_optimization.R
@@ -59,13 +45,13 @@ Example input workbook:
 01_CMP_optimization/001_R/input.xlsx
 ```
 
-Run from the repository root:
+Run the script from the repository root with the bundled input workbook:
 
 ```bash
 Rscript 01_CMP_optimization/001_R/CMP_optimization.R 01_CMP_optimization/001_R/input.xlsx 5 1000
 ```
 
-Arguments:
+Command-line arguments:
 
 ```text
 1. Input Excel workbook path
@@ -73,17 +59,25 @@ Arguments:
 3. Total number of operational crosses
 ```
 
-If no arguments are provided, the script uses:
+The script can also be run without command-line arguments. In that case, it looks for `input.xlsx` in the current working directory and uses the default settings `Ns = 5` and `number of crosses = 1000`:
 
-```text
-01_CMP_optimization/001_R/input_example/input.xlsx
-Ns = 5
-number of crosses = 1000
+```bash
+cd 01_CMP_optimization/001_R
+Rscript CMP_optimization.R
 ```
+
+Expected input workbook structure:
+
+| Sheet | Required content |
+|---|---|
+| Sheet 1 | GCA vector, one column, `n` parents × 1 |
+| Sheet 2 | SCA matrix, `n` parents × `n` parents |
+| Sheet 3 | Genomic relationship matrix, `n` parents × `n` parents |
+| Sheet 4 | Optional cross-limit matrix; `0` = banned cross, values between `0` and `1` = upper bound, blank = no custom limit |
 
 The script writes three output sheets back into the same workbook:
 
-| Output sheet | Meaning |
+| Output sheet | Description |
 |---|---|
 | `Output_Parents_p` | Optimized total parental contribution for each parent |
 | `Output_Families_Y` | Optimized family proportions and operational number of crosses |
@@ -97,21 +91,28 @@ Spreadsheet solver file:
 01_CMP_optimization/002_Excel/CMP_solver.xlsx
 ```
 
-Use this option when users prefer a spreadsheet-based CMP optimization workflow. See the first sheet of the solver Excel for instructions to provide the required inputs and expected outputs.
+Use this option for a spreadsheet-based CMP optimization workflow. Open `CMP_solver.xlsx` and follow the instructions inside the workbook to enter inputs and run the solver.
 
 ---
 
 ## 02_manuscript_reproduction
 
-This folder contains the manuscript-scale workflow.
+This folder contains the manuscript-scale simulation and scenario reproduction workflow.
 
+Main script:
 
 ```text
-02_manuscript_reproduction/Simulation_optimization_script.R
+02_manuscript_reproduction/Simulation_optimization_script
 ```
 
-The script generates scenario input data such as additive relationship matrices, true GCA/SCA values, half-sib GCA/SCA estimates, and full-sib GCA/SCA estimates. The same R script performs CMP optimization for the respective scenarios given below:
+Run from the manuscript reproduction folder:
 
+```bash
+cd 02_manuscript_reproduction
+Rscript Simulation_optimization_script
+```
+
+This workflow generates scenario input data, including additive relationship matrices, true GCA/SCA values, half-sib GCA/SCA estimates, and full-sib GCA/SCA estimates. The same script performs CMP optimization for the study scenarios below.
 
 | Scenario | Decision information used in optimization |
 |---|---|
@@ -120,23 +121,29 @@ The script generates scenario input data such as additive relationship matrices,
 | `sc3_30` | Full-sib GCA + SCA estimated from 30 progeny per cross |
 | `sc4_100` | Full-sib GCA + SCA estimated from 100 progeny per cross |
 
+This script is computationally intensive. For testing, reduce simulation-scale parameters such as `n_iterations`, `nf`, `snp`, `nr`, `reps_vec`, and `itr_grid` before running the full manuscript-scale workflow.
+
 ---
 
 ## Software requirements
 
-### User CMP optimization script
+### R implementation for CMP optimization
 
-Install R packages:
+Install CRAN packages:
 
 ```r
 install.packages(c("Matrix", "readxl", "openxlsx"))
 ```
 
-The script also requires the `gurobi` R package, which is installed with Gurobi Optimizer rather than from CRAN.
+The script also requires the `gurobi` R package, which is installed with Gurobi Optimizer rather than from CRAN. A valid Gurobi installation and license are required.
+
+### Excel implementation
+
+The Excel workbook requires Microsoft Excel with Solver support enabled.
 
 ### Manuscript reproduction workflow
 
-Install or configure:
+Install CRAN packages:
 
 ```r
 install.packages(c(
