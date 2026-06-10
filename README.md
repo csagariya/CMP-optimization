@@ -50,19 +50,19 @@ This folder contains the main CMP optimization model for new users.
 Main file:
 
 ```text
-01_CMP_optimization/001_R/run_CMP_optimization.R
+01_CMP_optimization/001_R/CMP_optimization.R
 ```
 
 Example input workbook:
 
 ```text
-01_CMP_optimization/001_R/input_example/input.xlsx
+01_CMP_optimization/001_R/input.xlsx
 ```
 
 Run from the repository root:
 
 ```bash
-Rscript 01_CMP_optimization/001_R/run_CMP_optimization.R 01_CMP_optimization/001_R/input_example/input.xlsx 5 1000
+Rscript 01_CMP_optimization/001_R/CMP_optimization.R 01_CMP_optimization/001_R/input.xlsx 5 1000
 ```
 
 Arguments:
@@ -81,7 +81,7 @@ Ns = 5
 number of crosses = 1000
 ```
 
-The script writes three output sheets back into the workbook:
+The script writes three output sheets back into the same workbook:
 
 | Output sheet | Meaning |
 |---|---|
@@ -94,10 +94,10 @@ The script writes three output sheets back into the workbook:
 Spreadsheet solver file:
 
 ```text
-01_CMP_optimization/002_Excel/CMP_optimization.xlsx
+01_CMP_optimization/002_Excel/CMP_solver.xlsx
 ```
 
-Use this option when users prefer a spreadsheet-based CMP optimization workflow. See the `file_description.md` file in the folder for the workbook purpose, required inputs, and expected outputs.
+Use this option when users prefer a spreadsheet-based CMP optimization workflow. See the first sheet of the solver Excel for instructions to provide the required inputs and expected outputs.
 
 ---
 
@@ -105,19 +105,13 @@ Use this option when users prefer a spreadsheet-based CMP optimization workflow.
 
 This folder contains the manuscript-scale workflow.
 
-### Simulation data generation
-
-Main MoBPS simulation/data-generation script:
 
 ```text
-02_manuscript_reproduction/001_simulation_data/MoBPS_scripts/MoBPS_CMP_simulation_and_data_generation.R
+02_manuscript_reproduction/Simulation_optimization_script.R
 ```
 
-The script generates scenario input data such as additive relationship matrices, true GCA/SCA values, half-sib GCA/SCA estimates, and full-sib GCA/SCA estimates.
+The script generates scenario input data such as additive relationship matrices, true GCA/SCA values, half-sib GCA/SCA estimates, and full-sib GCA/SCA estimates. The same R script performs CMP optimization for the respective scenarios given below:
 
-### CMP optimization scenarios
-
-The uploaded repository contained one integrated manuscript workflow script. The scenario folder therefore contains a runner note pointing to the integrated script and documents the expected inputs and outputs for the four manuscript scenarios:
 
 | Scenario | Decision information used in optimization |
 |---|---|
