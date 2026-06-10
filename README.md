@@ -27,22 +27,13 @@ repository_root/
 ├── LICENSE
 ├── 01_CMP_optimization/
 │   ├── 001_R/
-│   │   ├── file_description.md
+│   │   
 │   │   ├── run_CMP_optimization.R
-│   │   ├── input_example/
-│   │   │   └── input.xlsx
-│   │   └── expected_outputs/
-│   │       ├── README.md
-│   │       ├── Output_Parents_p_schema.csv
-│   │       ├── Output_Families_Y_schema.csv
-│   │       └── Operational_Plan_Simple_schema.csv
+│   │   ├── input.xlsx
+│   │   
 │   └── 002_Excel/
-│       ├── file_description.md
-│       ├── CMP_optimization.xlsx
-│       ├── input_example/
-│       │   └── README.md
-│       └── expected_outputs/
-│           └── README.md
+│       ├── CMP_solver.xlsx
+│       
 └── 02_manuscript_reproduction/
     ├── Simulation_optimization_script.R
     
