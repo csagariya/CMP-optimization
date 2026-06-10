@@ -1,63 +1,170 @@
-# A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards
+# A novel convex optimization framework for controlled mass pollination
 
-This repository contains R scripts and supporting tools associated with the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
+This repository supports the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
 
-The repository provides a practical framework for **controlled mass pollination (CMP) optimization** in seed orchards. The framework maximizes total genetic gain by incorporating both **general combining ability (GCA)** and **specific combining ability (SCA)**, while constraining relatedness through a target **status number** \(N_s\).
+The repository is organized so that folder names match the workflow. Most users should start with **01_CMP_optimization**, which contains the practical CMP model and example inputs. The manuscript-scale MoBPS simulation and scenario reproduction workflow is separated under **02_manuscript_reproduction**.
 
 ---
 
 ## Contents
 
-1. [Repository overview](#repository-overview)
-2. [Part 1: Simulation and CMP optimization used in the article](#part-1-simulation-and-cmp-optimization-used-in-the-article)
-   - [Main file](#main-file)
-   - [Workflow](#workflow)
-   - [Requirements](#requirements)
-3. [Part 2: CMP optimization script for users](#part-2-cmp-optimization-script-for-users)
-   - [Main file](#main-file-1)
-   - [Required software](#required-software)
-   - [Input Excel workbook](#input-excel-workbook)
-   - [How to run](#how-to-run)
-   - [Output sheets](#output-sheets)
-4. [Part 3: CMP optimization using the MS Excel solver](#part-3-cmp-optimization-using-the-ms-excel-solver)
-5. [Contact](#contact)
+1. [CMP optimization model for users](#01_cmp_optimization)
+   - [R implementation](#r-implementation)
+   - [Excel implementation](#excel-implementation)
+2. [Manuscript reproduction](#02_manuscript_reproduction)
+   - [Simulation data generation](#simulation-data-generation)
+   - [CMP optimization scenarios](#cmp-optimization-scenarios)
+3. [Software requirements](#software-requirements)
+4. [Contact](#contact)
 
 ---
 
-## Repository overview
-
-This repository includes three components:
-
-| Part | Component | Purpose |
-|---|---|---|
-| Part 1 | `R/cmp_sim_opt.R` | Simulation and CMP optimization workflow used in the article |
-| Part 2 | `R/cmp_optimization.R` | User-oriented R script for CMP optimization from an Excel input workbook |
-| Part 3 | `MS-Excel-tool/CMP_solver.xlsx` | Spreadsheet-based CMP optimization tool for users |
-
----
-
-## Part 1: Simulation and CMP optimization used in the article
-
-### Main file
+## Repository structure
 
 ```text
-R/cmp_sim_opt.R
+repository_root/
+├── README.md
+├── LICENSE
+├── 01_CMP_optimization/
+│   ├── 001_R/
+│   │   ├── file_description.md
+│   │   ├── run_CMP_optimization.R
+│   │   ├── input_example/
+│   │   │   └── input.xlsx
+│   │   └── expected_outputs/
+│   │       ├── README.md
+│   │       ├── Output_Parents_p_schema.csv
+│   │       ├── Output_Families_Y_schema.csv
+│   │       └── Operational_Plan_Simple_schema.csv
+│   └── 002_Excel/
+│       ├── file_description.md
+│       ├── CMP_optimization.xlsx
+│       ├── input_example/
+│       │   └── README.md
+│       └── expected_outputs/
+│           └── README.md
+└── 02_manuscript_reproduction/
+    ├── README.md
+    ├── 001_simulation_data/
+    │   ├── file_description.md
+    │   ├── MoBPS_scripts/
+    │   │   └── MoBPS_CMP_simulation_and_data_generation.R
+    │   └── outputs_used_in_manuscript/
+    │       └── README.md
+    └── 002_CMP_optimization_scenarios/
+        ├── file_description.md
+        ├── R_scripts/
+        │   └── run_CMP_optimization_scenarios.R
+        ├── input/
+        │   └── README.md
+        └── outputs/
+            └── README.md
 ```
 
-## Workflow
+---
 
-The script simulates a breeding population and evaluates controlled mass pollination decisions under four information scenarios:
+## 01_CMP_optimization
 
-Scenario 1 (sc1_true): true GCA and true SCA are used for optimization.
-Scenario 2 (sc2_hs): half-sib GCA only is used for optimization.
-Scenario 3 (sc3_30): full-sib GCA and SCA are estimated from 30 progeny per cross.
-Scenario 4 (sc4_100): full-sib GCA and SCA are estimated from 100 progeny per cross.
+This folder contains the main CMP optimization model for new users.
 
-For each scenario, the workflow optimizes cross contributions subject to a status-number diversity constraint. The realized genetic gain is then evaluated using the true simulated GCA and SCA values.
+### R implementation
 
-## Requirements
+Main file:
 
-Install R and the required R packages before running the workflow:
+```text
+01_CMP_optimization/001_R/run_CMP_optimization.R
+```
+
+Example input workbook:
+
+```text
+01_CMP_optimization/001_R/input_example/input.xlsx
+```
+
+Run from the repository root:
+
+```bash
+Rscript 01_CMP_optimization/001_R/run_CMP_optimization.R 01_CMP_optimization/001_R/input_example/input.xlsx 5 1000
+```
+
+Arguments:
+
+```text
+1. Input Excel workbook path
+2. Target status number, Ns
+3. Total number of operational crosses
+```
+
+If no arguments are provided, the script uses:
+
+```text
+01_CMP_optimization/001_R/input_example/input.xlsx
+Ns = 5
+number of crosses = 1000
+```
+
+The script writes three output sheets back into the workbook:
+
+| Output sheet | Meaning |
+|---|---|
+| `Output_Parents_p` | Optimized total parental contribution for each parent |
+| `Output_Families_Y` | Optimized family proportions and operational number of crosses |
+| `Operational_Plan_Simple` | Editable operational plan for female and male contributions |
+
+### Excel implementation
+
+Spreadsheet solver file:
+
+```text
+01_CMP_optimization/002_Excel/CMP_optimization.xlsx
+```
+
+Use this option when users prefer a spreadsheet-based CMP optimization workflow. See the `file_description.md` file in the folder for the workbook purpose, required inputs, and expected outputs.
+
+---
+
+## 02_manuscript_reproduction
+
+This folder contains the manuscript-scale workflow.
+
+### Simulation data generation
+
+Main MoBPS simulation/data-generation script:
+
+```text
+02_manuscript_reproduction/001_simulation_data/MoBPS_scripts/MoBPS_CMP_simulation_and_data_generation.R
+```
+
+The script generates scenario input data such as additive relationship matrices, true GCA/SCA values, half-sib GCA/SCA estimates, and full-sib GCA/SCA estimates.
+
+### CMP optimization scenarios
+
+The uploaded repository contained one integrated manuscript workflow script. The scenario folder therefore contains a runner note pointing to the integrated script and documents the expected inputs and outputs for the four manuscript scenarios:
+
+| Scenario | Decision information used in optimization |
+|---|---|
+| `sc1_true` | True GCA + true SCA |
+| `sc2_hs` | Half-sib GCA only |
+| `sc3_30` | Full-sib GCA + SCA estimated from 30 progeny per cross |
+| `sc4_100` | Full-sib GCA + SCA estimated from 100 progeny per cross |
+
+---
+
+## Software requirements
+
+### User CMP optimization script
+
+Install R packages:
+
+```r
+install.packages(c("Matrix", "readxl", "openxlsx"))
+```
+
+The script also requires the `gurobi` R package, which is installed with Gurobi Optimizer rather than from CRAN.
+
+### Manuscript reproduction workflow
+
+Install or configure:
 
 ```r
 install.packages(c(
@@ -71,121 +178,18 @@ install.packages(c(
 ))
 ```
 
-The following packages require separate installation or licensing steps:
+Additional dependencies require separate installation or licensing:
 
-- **ASReml-R** (`asreml`): proprietary software; install according to your license.
-- **Gurobi** (`gurobi`): install Gurobi Optimizer and configure a valid license. See the Gurobi website for license and installation details: https://www.gurobi.com/
-- **MoBPS**, **miraculix**, and **RandomFieldsUtils**: install from these packages according to the guidelines in Pook et al (2020): https://doi.org/10.1534/g3.120.401193 
+- `asreml`: ASReml-R, proprietary software.
+- `gurobi`: Gurobi Optimizer and R package, license required.
+- `MoBPS`, `miraculix`, and `RandomFieldsUtils`: install according to the MoBPS package guidance.
 
-## Part 2: CMP optimization script for users. 
-## Main file
-
-```text
-R/cmp_optimization.R
-```
-
-This script reads an Excel workbook, solves the CMP optimization problem using Gurobi, and writes the optimized parental contributions and operational crossing plan back into the same workbook.
-
-## Required software
-
-Install R and the following R packages:
-
-```r
-install.packages(c("Matrix", "readxl", "openxlsx"))
-```
-
-The script also requires the `gurobi` R package, which is installed with the Gurobi Optimizer rather than from CRAN. Install Gurobi first, activate a license, and then install the R package from the Gurobi installation folder.
-
-Example on Windows, after installing Gurobi:
-
-```r
-install.packages("C:/gurobi1200/win64/R/gurobi_12.0-0.zip", repos = NULL)
-library(gurobi)
-gurobi::gurobi_version()
-```
-
-Adjust the path and version number to match your local Gurobi installation.
-
-## Input Excel workbook
-
-Prepare one Excel workbook, for example:
-
-```text
-input.xlsx
-```
-
-The workbook must contain these sheets in this order:
-
-| Sheet | Content | Dimension |
-|---|---|---|
-| 1 | GCA values | n parents x 1 |
-| 2 | SCA matrix | n parents x n parents |
-| 3 | Genomic relationship matrix, G | n parents x n parents |
-| 4 | Optional cross-limit matrix | n parents x n parents |
-
-
-## How to run
-
-From the repository folder, run:
-
-```bash
-Rscript R/cmp_optimization.R input.xlsx 5 1000
-```
-
-Arguments are:
-
-```text
-1. input Excel file path
-2. target status number Ns
-3. total number of operational crosses
-```
-
-For example:
-
-```bash
-Rscript R/cmp_optimization.R data/input.xlsx 5 1000
-```
-
-If no arguments are provided, the defaults are:
-
-```text
-input file: input.xlsx
-target Ns: 5
-number of crosses: 1000
-```
-
-## Output sheets
-
-The script writes three output sheets to the same Excel workbook:
-
-| Output sheet | Description |
-|---|---|
-| `Output_Parents_p` | optimized total parental contribution for each parent |
-| `Output_Families_Y` | optimized family proportions and number of crosses |
-| `Operational_Plan_Simple` | editable operational plan with female and male contribution formulas |
-
-In `Operational_Plan_Simple`, the column `Target Female (f)` is highlighted. You can edit this column to adjust female contributions. The workbook formulas then update the required male contributions and the split of crosses in `Output_Families_Y`.
-
-## Part 3: CMP optimization using the MS Excel solver 
-A separate folder, ```text MS-Excel-tool```, is provided for users who prefer to perform CMP optimization using a spreadsheet-based tool.
-
-The Excel file is: 
-```text
-MS-Excel-tool/CMP_solver.xlsx
-```
-The Work book is organized into the following sheets:
-| Sheet | Description |
-|---|---|
-| Sheet 1 | User instructions |
-| Sheet 2 | Input data and solver setup for CMP optimization |
+---
 
 ## Contact
-For any further details/information/inquiries, please contact:
 
-Corresponding author: Prof. Milan Lstibůrek
+Corresponding author: Prof. Milan Lstibůrek  
 E-mail: lstiburek@fld.czu.cz
 
-First author: Christi Sagariya
+First author: Christi Sagariya  
 E-mail: csagariya@gmail.com
-
-
