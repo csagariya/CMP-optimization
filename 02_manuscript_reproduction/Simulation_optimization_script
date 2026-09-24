@@ -6,7 +6,7 @@
 # Authors: Christi Sagariya, Ye-Ji Kim, Yousry A. El-Kassaby,
 #          Milan Lstiburek
 #
-# This corrected script implements the six genetic-architecture combinations
+# This script implements the six genetic-architecture combinations
 # described in the manuscript and uses 50 stochastic simulation replicates.
 # Each simulated dataset is optimized ONCE per scenario and target Ns.
 #
@@ -38,10 +38,6 @@
 # The h2=0.5, Vd/Va=1.0 case therefore has Ve=0, which is the mathematical
 # consequence of those two requested parameter values.
 #
-# MoBPS n.dominant is used (not n.overdominant), because the manuscript states
-# that dominance QTL were simulated. The additive and dominance component
-# traits are combined WITHOUT re-standardizing the combined trait; otherwise
-# the intended Va and Vd components would be destroyed.
 # =============================================================================
 
 options(stringsAsFactors = FALSE)
