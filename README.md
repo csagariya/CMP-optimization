@@ -1,13 +1,26 @@
-# A novel convex optimization framework for controlled mass pollination
+# Controlled mass pollination optimization
 
-This repository supports the article **“A novel convex optimization framework for controlled mass pollination: capturing additive and non-additive genetic gain in seed orchards.”**
+This repository supports the manuscript on controlled mass pollination (CMP)
+optimization using general combining ability (GCA), specific combining ability
+(SCA), and an explicit status-number constraint.
 
-The repository is organized into two main workflows:
+## Quantitative-genetic conventions used by the code
 
-- **`01_CMP_optimization/`**: user-facing controlled mass pollination (CMP) optimization tools in R and Excel.
-- **`02_manuscript_reproduction/`**: manuscript-scale simulation and optimization workflow used to reproduce the study scenarios.
+The repository uses **standard diallel GCA effects** `g_i`, defined by
 
----
+`family mean = mu + g_i + g_j + s_ij`.
+
+Accordingly, the family-level optimization coefficient is
+
+`g_i + g_j + s_ij`.
+
+Do not use `0.5*(g_i+g_j)+s_ij` unless the input values called “GCA” are
+actually additive breeding values `BV_i = 2*g_i`.
+
+For diversity, input relationship matrices are additive relationship matrices
+`A`. The R code forms the coancestry matrix `K = A/2`, computes
+`Theta = p' K p`, and imposes `Theta <= 1/(2*Ns)`. Equivalently, using `A`
+directly gives `p' A p <= 1/Ns`.
 
 ## Repository structure
 
@@ -22,153 +35,81 @@ CMP-optimization-main/
 │   └── 002_Excel/
 │       └── CMP_solver.xlsx
 └── 02_manuscript_reproduction/
-    └── Simulation_optimization_script
+    └── CMP_manuscript_simulation_optimization.R
 ```
 
----
+## 01_CMP_optimization: user-facing R workflow
 
-## 01_CMP_optimization
-
-This folder contains the main CMP optimization tools for users.
-
-### R implementation
-
-Main script:
-
-```text
-01_CMP_optimization/001_R/CMP_optimization.R
-```
-
-Example input workbook:
-
-```text
-01_CMP_optimization/001_R/input.xlsx
-```
-
-Run the script from the repository root with the bundled input workbook:
+Run from the repository root:
 
 ```bash
-Rscript 01_CMP_optimization/001_R/CMP_optimization.R 01_CMP_optimization/001_R/input.xlsx 5 1000
+Rscript 01_CMP_optimization/001_R/CMP_optimization.R \
+  01_CMP_optimization/001_R/input.xlsx 5 1000
 ```
 
-Command-line arguments:
+Arguments are: (1) Excel input file, (2) target status number `Ns`, and
+(3) requested total number of operational crosses.
 
-```text
-1. Input Excel workbook path
-2. Target status number, Ns
-3. Total number of operational crosses
-```
-
-The script can also be run without command-line arguments. In that case, it looks for `input.xlsx` in the current working directory and uses the default settings `Ns = 5` and `number of crosses = 1000`:
-
-```bash
-cd 01_CMP_optimization/001_R
-Rscript CMP_optimization.R
-```
-
-Expected input workbook structure:
+The input workbook contains:
 
 | Sheet | Required content |
 |---|---|
-| Sheet 1 | GCA vector, one column, `n` parents × 1 |
-| Sheet 2 | SCA matrix, `n` parents × `n` parents |
-| Sheet 3 | Genomic relationship matrix, `n` parents × `n` parents |
-| Sheet 4 | Optional cross-limit matrix; `0` = banned cross, values between `0` and `1` = upper bound, blank = no custom limit |
+| 1 | Standard GCA vector `g`, one value per parent |
+| 2 | Symmetric SCA matrix |
+| 3 | Additive relationship matrix `A` |
+| 4 | Optional cross-specific upper-limit matrix |
 
-The script writes three output sheets back into the same workbook:
+The script solves the **continuous** family-allocation QCP. It writes the
+continuous parent/family results plus an integer operational translation back
+to the workbook. The integer translation is a deployment aid; any strict
+integer, sex-specific, or direction-specific operational constraints should be
+modeled explicitly if they must be guaranteed by the optimizer.
 
-| Output sheet | Description |
-|---|---|
-| `Output_Parents_p` | Optimized total parental contribution for each parent |
-| `Output_Families_Y` | Optimized family proportions and operational number of crosses |
-| `Operational_Plan_Simple` | Editable operational plan for female and male contributions |
+Required R packages are `Matrix`, `readxl`, `openxlsx`, and the Gurobi R API.
+Gurobi requires a separate installation and license.
 
-### Excel implementation
+## 02_manuscript_reproduction: simulation and study scenarios
 
-Spreadsheet solver file:
-
-```text
-01_CMP_optimization/002_Excel/CMP_solver.xlsx
-```
-
-Use this option for a spreadsheet-based CMP optimization workflow. Open `CMP_solver.xlsx` and follow the instructions inside the workbook to enter inputs and run the solver.
-
----
-
-## 02_manuscript_reproduction
-
-This folder contains the manuscript-scale simulation and scenario reproduction workflow.
-
-Main script:
-
-```text
-02_manuscript_reproduction/Simulation_optimization_script
-```
-
-Run from the manuscript reproduction folder:
+Run:
 
 ```bash
-cd 02_manuscript_reproduction
-Rscript Simulation_optimization_script
+Rscript 02_manuscript_reproduction/CMP_manuscript_simulation_optimization.R
 ```
 
-This workflow generates scenario input data, including additive relationship matrices, true GCA/SCA values, half-sib GCA/SCA estimates, and full-sib GCA/SCA estimates. The same script performs CMP optimization for the study scenarios below.
+The corrected reproduction workflow uses:
+
+- 50 independent stochastic population replicates;
+- `h2 = 0.2, 0.5`;
+- `Vd/Va = 0.25, 0.5, 1.0`;
+- ordinary dominance QTL (`n.dominant`), not overdominance;
+- target status numbers `Ns = 2, 5, 10, 15, 20`;
+- one deterministic optimization per stochastic replicate × parameter setting × scenario × `Ns`.
+
+Study scenarios:
 
 | Scenario | Decision information used in optimization |
 |---|---|
-| `sc1_true` | True GCA + true SCA |
+| `sc1_true` | True standard GCA + true SCA |
 | `sc2_hs` | Half-sib GCA only |
 | `sc3_30` | Full-sib GCA + SCA estimated from 30 progeny per cross |
 | `sc4_100` | Full-sib GCA + SCA estimated from 100 progeny per cross |
 
-This script is computationally intensive. For testing, reduce simulation-scale parameters such as `n_iterations`, `nf`, `snp`, `nr`, `reps_vec`, and `itr_grid` before running the full manuscript-scale workflow.
+The script records realized variance-component and heritability diagnostics so
+the simulated architecture can be checked rather than inferred only from input
+settings.
 
----
+### Dependencies
 
-## Software requirements
+CRAN/package dependencies include `dplyr`, `tidyr`, `Matrix`, `openxlsx`, and
+`ggplot2`, plus MoBPS and its dependencies. ASReml-R and Gurobi are separately
+licensed dependencies.
 
-### R implementation for CMP optimization
+## Reproducibility note
 
-Install CRAN packages:
-
-```r
-install.packages(c("Matrix", "readxl", "openxlsx"))
-```
-
-The script also requires the `gurobi` R package, which is installed with Gurobi Optimizer rather than from CRAN. A valid Gurobi installation and license are required.
-
-### Excel implementation
-
-The Excel workbook requires Microsoft Excel with Solver support enabled.
-
-### Manuscript reproduction workflow
-
-Install CRAN packages:
-
-```r
-install.packages(c(
-  "dplyr",
-  "tidyr",
-  "Matrix",
-  "reshape2",
-  "openxlsx",
-  "slam",
-  "ggplot2"
-))
-```
-
-Additional dependencies require separate installation or licensing:
-
-- `asreml`: ASReml-R, proprietary software.
-- `gurobi`: Gurobi Optimizer and R package, license required.
-- `MoBPS`, `miraculix`, and `RandomFieldsUtils`: install according to the MoBPS package guidance.
-
----
+Results, confidence intervals, tables, and figures in the manuscript should be
+regenerated after changing GCA scaling, dominance architecture, residual
+variance, or the replicate structure. The previous numerical results should not
+be mixed with outputs from the corrected implementation.
 
 ## Contact
-
-Corresponding author: Prof. Milan Lstibůrek  
-E-mail: lstiburek@fld.czu.cz
-
-First author: Christi Sagariya  
-E-mail: csagariya@gmail.com
+Milan Lstiburek: lstiburek@fld.czu.cz
