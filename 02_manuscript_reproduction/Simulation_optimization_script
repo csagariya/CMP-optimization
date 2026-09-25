@@ -30,14 +30,9 @@
 #
 # Genetic-architecture convention
 # -------------------------------
-# The phenotypic variance is standardized to one at the design level:
-#     Va = h2
-#     Vd = (Vd/Va) * Va
-#     Ve = 1 - Va - Vd
-# so h2 = Va/(Va+Vd+Ve) exactly by construction.
-# The h2=0.5, Vd/Va=1.0 case therefore has Ve=0, which is the mathematical
-# consequence of those two requested parameter values.
-#
+# narrow-sense heritability  = 0.2 and 0.5
+# Therefore Va = 0.2 and 0.5 because we set phenotypic variance = 1.0
+# Therefore Ve = 0.8 and 0.5 (1 - Va)
 # =============================================================================
 
 options(stringsAsFactors = FALSE)
@@ -150,7 +145,7 @@ for (rep_i in seq_len(n_iterations)) {
         # Standardize phenotypic variance to one at the design level.
         Va_target <- h2_target
         Vd_target <- dominance_ratio_target * Va_target
-        Ve_target <- 1 - Va_target - Vd_target
+        Ve_target <- 1 - Va_target # we model a trait with narrow-sense heritability (0.2 and 0.5) thefore we use Ve = (1 - Va) 
 
         if (Ve_target < -1e-12) {
             stop(sprintf(
@@ -646,7 +641,7 @@ for (rep_i in seq_len(n_iterations)) {
 
             gca_true_set <- gca_true[common_ids]
             sca_true_set <- true_sca[common_ids, common_ids, drop = FALSE]
-            gca_est_set <- gca_est[common_ids]
+            gca_est_set <- gca_est[common_ids]g
             sca_est_set <- sca_est[common_ids, common_ids, drop = FALSE]
 
             sca_true_set <- (sca_true_set + t(sca_true_set)) / 2
